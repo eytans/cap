@@ -49,7 +49,7 @@
 #[cfg(feature = "nightly")]
 use std::alloc::{Alloc, AllocErr, CannotReallocInPlace};
 use std::{
-	alloc::{GlobalAlloc, Layout}, ptr, sync::atomic::{AtomicUsize, Ordering}
+	alloc::{GlobalAlloc, Layout}, ptr, sync::atomic::{AtomicUsize, Ordering, AtomicBool}
 };
 
 /// A struct that wraps another allocator and limits the number of bytes that can be allocated.
@@ -63,7 +63,7 @@ pub struct Cap<H> {
 	#[cfg(feature = "stats")]
 	max_allocated: AtomicUsize,
 	#[cfg(feature = "stats")]
-	stats_enabled: bool,
+	stats_enabled: AtomicBool,
 }
 
 impl<H> Cap<H> {
@@ -80,7 +80,7 @@ impl<H> Cap<H> {
 			#[cfg(feature = "stats")]
 			max_allocated: AtomicUsize::new(0),
 			#[cfg(feature = "stats")]
-			stats_enabled: true,
+			stats_enabled: AtomicBool::new(true),
 		}
 	}
 
@@ -154,13 +154,13 @@ impl<H> Cap<H> {
 	/// Runtime enable stats collection
 	#[cfg(feature = "stats")]
 	pub fn enable_stats(&mut self) {
-		self.stats_enabled = true;
+		self.stats_enabled.store(true, Ordering::Relaxed);
 	}
 
 	/// Runtime disable stats collection
 	#[cfg(feature = "stats")]
 	pub fn disable_stats(&mut self) {
-		self.stats_enabled = false;
+		self.stats_enabled.store(false, Ordering::Relaxed);
 	}
 
 	/// Get total amount of allocated memory. This includes already deallocated memory.
@@ -178,7 +178,7 @@ impl<H> Cap<H> {
 	fn update_stats(&self, size: usize) {
 		#[cfg(feature = "stats")]
 		{
-			if !self.stats_enabled {
+			if !self.stats_enabled.load(Ordering::Relaxed) {
 				return;
 			}
 			let _ = self.total_allocated.fetch_add(size, Ordering::Relaxed);
