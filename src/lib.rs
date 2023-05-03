@@ -62,6 +62,8 @@ pub struct Cap<H> {
 	total_allocated: AtomicUsize,
 	#[cfg(feature = "stats")]
 	max_allocated: AtomicUsize,
+	#[cfg(feature = "stats")]
+	stats_enabled: bool,
 }
 
 impl<H> Cap<H> {
@@ -77,6 +79,8 @@ impl<H> Cap<H> {
 			total_allocated: AtomicUsize::new(0),
 			#[cfg(feature = "stats")]
 			max_allocated: AtomicUsize::new(0),
+			#[cfg(feature = "stats")]
+			stats_enabled: true,
 		}
 	}
 
@@ -147,6 +151,18 @@ impl<H> Cap<H> {
 		}
 	}
 
+	/// Runtime enable stats collection
+	#[cfg(feature = "stats")]
+	pub fn enable_stats(&mut self) {
+		self.stats_enabled = true;
+	}
+
+	/// Runtime disable stats collection
+	#[cfg(feature = "stats")]
+	pub fn disable_stats(&mut self) {
+		self.stats_enabled = false;
+	}
+
 	/// Get total amount of allocated memory. This includes already deallocated memory.
 	#[cfg(feature = "stats")]
 	pub fn total_allocated(&self) -> usize {
@@ -162,6 +178,9 @@ impl<H> Cap<H> {
 	fn update_stats(&self, size: usize) {
 		#[cfg(feature = "stats")]
 		{
+			if !self.stats_enabled {
+				return;
+			}
 			let _ = self.total_allocated.fetch_add(size, Ordering::Relaxed);
 			// If max_allocated is less than currently allocated, then it will be updated to limit - remaining.
 			// Otherwise, it will remain unchanged.
