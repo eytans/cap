@@ -154,39 +154,39 @@ impl<H> Cap<H> {
 	/// Runtime enable stats collection
 	#[cfg(feature = "stats")]
 	pub fn enable_stats(&mut self) {
-		self.stats_enabled.store(true, Ordering::Relaxed);
+		self.stats_enabled.store(true, Ordering::SeqCst);
 	}
 
 	/// Runtime disable stats collection
 	#[cfg(feature = "stats")]
 	pub fn disable_stats(&mut self) {
-		self.stats_enabled.store(false, Ordering::Relaxed);
+		self.stats_enabled.store(false, Ordering::SeqCst);
 	}
 
 	/// Get total amount of allocated memory. This includes already deallocated memory.
 	#[cfg(feature = "stats")]
 	pub fn total_allocated(&self) -> usize {
-		self.total_allocated.load(Ordering::Relaxed)
+		self.total_allocated.load(Ordering::Acquire)
 	}
 
 	/// Get maximum amount of memory that was allocated at any point in time.
 	#[cfg(feature = "stats")]
 	pub fn max_allocated(&self) -> usize {
-		self.max_allocated.load(Ordering::Relaxed)
+		self.max_allocated.load(Ordering::Acquire)
 	}
 
 	fn update_stats(&self, size: usize) {
 		#[cfg(feature = "stats")]
 		{
-			if !self.stats_enabled.load(Ordering::Relaxed) {
+			if !self.stats_enabled.load(Ordering::SeqCst) {
 				return;
 			}
-			let _ = self.total_allocated.fetch_add(size, Ordering::Relaxed);
+			let _ = self.total_allocated.fetch_add(size, Ordering::Release);
 			// If max_allocated is less than currently allocated, then it will be updated to limit - remaining.
 			// Otherwise, it will remain unchanged.
 			let _ = self
 				.max_allocated
-				.fetch_max(self.allocated(), Ordering::Relaxed);
+				.fetch_max(self.allocated(), Ordering::Release);
 		}
 		#[cfg(not(feature = "stats"))]
 		{
